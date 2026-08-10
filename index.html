@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мастер по ремонту и сборке ПК | Отзывы и Оценки</title>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; line-height: 1.6; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    
+    header { text-align: center; margin-bottom: 40px; padding: 20px 0; border-bottom: 1px solid #1e293b; }
+    h1 { color: #38bdf8; font-size: 2.2rem; margin-bottom: 10px; }
+    .subtitle { color: #94a3b8; }
+    
+    .rating-summary { background: #1e293b; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 30px; }
+    .score { font-size: 3rem; font-weight: bold; color: #facc15; }
+    
+    .card { background: #1e293b; padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #334155; }
+    h2 { margin-bottom: 20px; color: #38bdf8; }
+    
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; color: #cbd5e1; }
+    input, select, textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1rem; }
+    textarea { resize: vertical; height: 100px; }
+    
+    .stars-select { display: flex; gap: 10px; font-size: 2rem; cursor: pointer; color: #475569; }
+    .stars-select span.active { color: #facc15; }
+    
+    button { width: 100%; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    button:hover { background: #0369a1; }
+    
+    .review-item { background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #0284c7; }
+    .review-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .review-author { font-weight: bold; color: #f8fafc; }
+    .review-service { font-size: 0.85rem; color: #38bdf8; background: #1e293b; padding: 2px 8px; border-radius: 4px; }
+    .review-stars { color: #facc15; }
+    .review-text { color: #cbd5e1; }
+    .review-date { font-size: 0.75rem; color: #64748b; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Частный ПК Мастер</h1>
+      <p class="subtitle">Сборка, чистка, диагностика и ремонт компьютеров</p>
+    </header>
+
+    <!-- Блок со средней оценкой -->
+    <div class="rating-summary">
+      <div>Средняя оценка клиентов</div>
+      <div class="score" id="avg-score">0.0</div>
+      <div id="total-reviews" style="color: #94a3b8;">На основе 0 отзывов</div>
+    </div>
+
+    <!-- Форма отправки отзыва -->
+    <div class="card">
+      <h2>Оставить отзыв</h2>
+      <form id="review-form">
+        <div class="form-group">
+          <label for="name">Ваше имя</label>
+          <input type="text" id="name" placeholder="Например: Алексей" required>
+        </div>
+
+        <div class="form-group">
+          <label for="service">Оказанная услуга</label>
+          <select id="service" required>
+            <option value="Сборка ПК">Сборка ПК</option>
+            <option value="Чистка и замена термопасты">Чистка и замена термопасты</option>
+            <option value="Диагностика / Ремонт">Диагностика / Ремонт</option>
+            <option value="Настройка ПО / Windows">Настройка ПО / Windows</option>
+            <option value="Апгрейд">Апгрейд компонентов</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Ваша оценка</label>
+          <div class="stars-select" id="star-picker">
+            <span data-val="1">★</span>
+            <span data-val="2">★</span>
+            <span data-val="3">★</span>
+            <span data-val="4">★</span>
+            <span data-val="5" class="active">★</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="comment">Ваш комментарий</label>
+          <textarea id="comment" placeholder="Расскажите, как все прошло..." required></textarea>
+        </div>
+
+        <button type="submit" id="submit-btn">Отправить отзыв</button>
+      </form>
+    </div>
+
+    <!-- Лента отзывов -->
+    <div class="card">
+      <h2>Отзывы клиентов</h2>
+      <div id="reviews-list">Загрузка отзывов...</div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://xdjgvghxjsilhfbejwac.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_aXFhoR8BdeCaYWDX14UUhQ_3gUad...';
+    
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let selectedRating = 5;
+
+    // Выбор звезд
+    const stars = document.querySelectorAll('#star-picker span');
+    stars.forEach((star, idx) => {
+      star.addEventListener('click', () => {
+        selectedRating = idx + 1;
+        stars.forEach((s, i) => {
+          if (i <= idx) s.classList.add('active');
+          else s.classList.remove('active');
+        });
+      });
+    });
+
+    // Загрузка отзывов из базы
+    async function loadReviews() {
+      const { data: reviews, error } = await db
+        .from('reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Ошибка загрузки:', error);
+        document.getElementById('reviews-list').innerText = 'Не удалось загрузить отзывы.';
+        return;
+      }
+
+      // Расчет средней оценки
+      if (reviews.length > 0) {
+        const avg = (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1);
+        document.getElementById('avg-score').innerText = avg;
+        document.getElementById('total-reviews').innerText = `На основе ${reviews.length} отзывов`;
+      } else {
+        document.getElementById('reviews-list').innerText = 'Отзывов пока нет. Будьте первым!';
+        return;
+      }
+
+      // Рендер списка
+      const listHtml = reviews.map(r => `
+        <div class="review-item">
+          <div class="review-header">
+            <div>
+              <span class="review-author">${escapeHtml(r.name)}</span>
+              <span class="review-service">${escapeHtml(r.service)}</span>
+            </div>
+            <div class="review-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+          </div>
+          <div class="review-text">${escapeHtml(r.comment)}</div>
+          <div class="review-date">${new Date(r.created_at).toLocaleDateString('ru-RU')}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('reviews-list').innerHTML = listHtml;
+    }
+
+    // Отправка формы
+    document.getElementById('review-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.innerText = 'Отправка...';
+
+      const name = document.getElementById('name').value;
+      const service = document.getElementById('service').value;
+      const comment = document.getElementById('comment').value;
+
+      const { error } = await db
+        .from('reviews')
+        .insert([{ name, service, rating: selectedRating, comment }]);
+
+      if (error) {
+        alert('Ошибка при отправке: ' + error.message);
+      } else {
+        document.getElementById('review-form').reset();
+        // Сбросим звезды на 5
+        stars.forEach(s => s.classList.add('active'));
+        selectedRating = 5;
+        loadReviews();
+      }
+
+      btn.disabled = false;
+      btn.innerText = 'Отправить отзыв';
+    });
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // Инициализация при загрузке
+    loadReviews();
+  </script>
+</body>
+</html>
